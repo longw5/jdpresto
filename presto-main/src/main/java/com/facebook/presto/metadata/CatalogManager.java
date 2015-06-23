@@ -14,6 +14,7 @@
 package com.facebook.presto.metadata;
 
 import com.facebook.presto.connector.ConnectorManager;
+import com.facebook.presto.server.PrestoServer.DatasourceAction;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
@@ -23,11 +24,22 @@ import javax.inject.Inject;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.file.FileSystems;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static com.facebook.presto.server.PrestoServer.updateDatasourcesAnnouncement;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -72,6 +84,17 @@ public class CatalogManager
         }
 
         catalogsLoaded.set(true);
+
+        // add catalogs automatically
+        new Thread(() -> {
+            try {
+                log.info("-- Catalog watcher thread start --");
+                startCatalogWatcher(catalogConfigurationDir);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     private void loadCatalog(File file)
@@ -110,5 +133,69 @@ public class CatalogManager
             properties.load(in);
         }
         return fromProperties(properties);
+    }
+
+    private void startCatalogWatcher(File catalogConfigurationDir) throws IOException, InterruptedException
+    {
+        WatchService watchService = FileSystems.getDefault().newWatchService();
+        Paths.get(catalogConfigurationDir.getAbsolutePath()).register(
+                watchService, StandardWatchEventKinds.ENTRY_CREATE,
+                StandardWatchEventKinds.ENTRY_DELETE,
+                StandardWatchEventKinds.ENTRY_MODIFY);
+        while (true) {
+            WatchKey key = watchService.take();
+            for (WatchEvent<?> event : key.pollEvents()) {
+                if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+                    log.info("New file in catalog directory : " + event.context());
+                    Path newCatalog = (Path) event.context();
+                    addCatalog(newCatalog);
+                }
+                else if (event.kind() == StandardWatchEventKinds.ENTRY_DELETE) {
+                    log.info("Delete file from catalog directory : " + event.context());
+                    Path deletedCatalog = (Path) event.context();
+                    deleteCatalog(deletedCatalog);
+                }
+                else if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
+                    log.info("Modify file from catalog directory : " + event.context());
+                    Path modifiedCatalog = (Path) event.context();
+                    modifyCatalog(modifiedCatalog);
+                }
+            }
+            boolean valid = key.reset();
+            if (!valid) {
+                break;
+            }
+        }
+    }
+
+    private void addCatalog(Path catalogPath)
+    {
+        File file = new File(catalogConfigurationDir, catalogPath.getFileName().toString());
+        if (file.isFile() && file.getName().endsWith(".properties")) {
+            try {
+                TimeUnit.SECONDS.sleep(5);
+                loadCatalog(file);
+                updateDatasourcesAnnouncement(Files.getNameWithoutExtension(catalogPath.getFileName().toString()), DatasourceAction.ADD);
+            }
+            catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    private void deleteCatalog(Path catalogPath)
+    {
+        if (catalogPath.getFileName().toString().endsWith(".properties")) {
+            String catalogName = Files.getNameWithoutExtension(catalogPath.getFileName().toString());
+            log.info("-- Removing catalog %s", catalogName);
+            connectorManager.removeConnector(catalogName);
+            updateDatasourcesAnnouncement(catalogName, DatasourceAction.DELETE);
+        }
+    }
+
+    private void modifyCatalog(Path catalogPath)
+    {
+        deleteCatalog(catalogPath);
+        addCatalog(catalogPath);
     }
 }

@@ -35,6 +35,13 @@ public class PageSourceManager
         pageSourceProviders.put(connectorId, connectorPageSourceProvider);
     }
 
+    public void removeConnectorPageSourceProvider(String connectorId)
+    {
+        if (pageSourceProviders.containsKey(connectorId)) {
+            pageSourceProviders.remove(connectorId);
+        }
+    }
+
     @Override
     public ConnectorPageSource createPageSource(Split split, List<ColumnHandle> columns)
     {

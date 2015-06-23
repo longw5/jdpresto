@@ -33,6 +33,13 @@ public class PageSinkManager
         pageSinkProviders.put(connectorId, connectorPageSinkProvider);
     }
 
+    public void removeConnectorPageSinkProvider(String connectorId)
+    {
+        if (pageSinkProviders.containsKey(connectorId)) {
+            pageSinkProviders.remove(connectorId);
+        }
+    }
+
     @Override
     public ConnectorPageSink createPageSink(OutputTableHandle tableHandle)
     {

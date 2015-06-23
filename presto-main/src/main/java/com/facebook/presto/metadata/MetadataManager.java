@@ -128,6 +128,13 @@ public class MetadataManager
         connectorsByCatalog.put(catalogName, new ConnectorMetadataEntry(connectorId, connectorMetadata));
     }
 
+    public synchronized void removeConnectorMetadata(String catalogName)
+    {
+        if (connectorsByCatalog.containsKey(catalogName)) {
+            connectorsByCatalog.remove(catalogName);
+        }
+    }
+
     public synchronized void addInformationSchemaMetadata(String connectorId, String catalogName, InformationSchemaMetadata metadata)
     {
         checkMetadataArguments(connectorId, catalogName, metadata);
@@ -137,6 +144,16 @@ public class MetadataManager
         informationSchemasByCatalog.put(catalogName, new ConnectorMetadataEntry(connectorId, metadata));
     }
 
+    public synchronized void removeInformationSchemaMetadata(String connectorId, String catalogName)
+    {
+        if (informationSchemasByCatalog.containsKey(catalogName)) {
+            informationSchemasByCatalog.remove(catalogName);
+        }
+        if (connectorsById.containsKey(connectorId)) {
+            connectorsById.remove(connectorId);
+        }
+    }
+
     public synchronized void addSystemTablesMetadata(String connectorId, String catalogName, ConnectorMetadata metadata)
     {
         checkMetadataArguments(connectorId, catalogName, metadata);
@@ -144,6 +161,23 @@ public class MetadataManager
 
         connectorsById.put(connectorId, metadata);
         systemTablesByCatalog.put(catalogName, new ConnectorMetadataEntry(connectorId, metadata));
+    }
+
+    public synchronized void removeSystemTablesMetadata(String connectorId, String catalogName)
+    {
+        if (systemTablesByCatalog.containsKey(catalogName)) {
+            systemTablesByCatalog.remove(catalogName);
+        }
+        if (connectorsById.containsKey(connectorId)) {
+            connectorsById.remove(connectorId);
+        }
+    }
+
+    public synchronized void removeConnectorsById(String connectorId)
+    {
+        if (connectorsById.containsKey(connectorId)) {
+            connectorsById.remove(connectorId);
+        }
     }
 
     private void checkMetadataArguments(String connectorId, String catalogName, ConnectorMetadata metadata)

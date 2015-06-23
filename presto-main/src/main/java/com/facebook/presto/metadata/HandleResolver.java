@@ -52,6 +52,13 @@ public class HandleResolver
         checkState(existingResolver == null, "Id %s is already assigned to resolver %s", id, existingResolver);
     }
 
+    public void removeHandleResolver(String id)
+    {
+        if (handleIdResolvers.containsKey(id)) {
+            handleIdResolvers.remove(id);
+        }
+    }
+
     public String getId(ConnectorTableHandle tableHandle)
     {
         for (Entry<String, ConnectorHandleResolver> entry : handleIdResolvers.entrySet()) {

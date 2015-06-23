@@ -250,6 +250,30 @@ public class ConnectorManager
         }
     }
 
+    public synchronized void removeConnector(String catalogName)
+    {
+        String connectorId = getConnectorId(catalogName);
+        metadataManager.removeConnectorMetadata(catalogName);
+
+        splitManager.removeConnectorSplitManager(makeInformationSchemaConnectorId(connectorId));
+        pageSourceManager.removeConnectorPageSourceProvider(makeInformationSchemaConnectorId(connectorId));
+        metadataManager.removeInformationSchemaMetadata(makeInformationSchemaConnectorId(connectorId), catalogName);
+
+        splitManager.removeConnectorSplitManager(makeSystemTablesConnectorId(connectorId));
+        pageSourceManager.removeConnectorPageSourceProvider(makeSystemTablesConnectorId(connectorId));
+        metadataManager.removeSystemTablesMetadata(makeSystemTablesConnectorId(connectorId), catalogName);
+
+        splitManager.removeConnectorSplitManager(connectorId);
+        pageSourceManager.removeConnectorPageSourceProvider(connectorId);
+        handleResolver.removeHandleResolver(connectorId);
+        metadataManager.removeConnectorsById(connectorId);
+
+        pageSinkManager.removeConnectorPageSinkProvider(connectorId);
+        indexManager.removeIndexResolver(connectorId);
+
+        connectors.remove(connectorId);
+    }
+
     private static String makeInformationSchemaConnectorId(String connectorId)
     {
         return INFORMATION_SCHEMA_CONNECTOR_PREFIX + connectorId;

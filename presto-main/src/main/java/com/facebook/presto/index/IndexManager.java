@@ -40,6 +40,13 @@ public class IndexManager
         checkState(resolvers.putIfAbsent(connectorId, resolver) == null, "IndexResolver for connector '%s' is already registered", connectorId);
     }
 
+    public void removeIndexResolver(String connectorId)
+    {
+        if (resolvers.containsKey(connectorId)) {
+            resolvers.remove(connectorId);
+        }
+    }
+
     public Optional<ResolvedIndex> resolveIndex(TableHandle tableHandle, Set<ColumnHandle> indexableColumns, TupleDomain<ColumnHandle> tupleDomain)
     {
         ConnectorIndexResolver resolver = resolvers.get(tableHandle.getConnectorId());

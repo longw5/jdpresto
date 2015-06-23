@@ -36,6 +36,13 @@ public class SplitManager
         checkState(splitManagers.putIfAbsent(connectorId, connectorSplitManager) == null, "SplitManager for connector '%s' is already registered", connectorId);
     }
 
+    public void removeConnectorSplitManager(String connectorId)
+    {
+        if (splitManagers.containsKey(connectorId)) {
+            splitManagers.remove(connectorId);
+        }
+    }
+
     public SplitSource getSplits(TableLayoutHandle layout)
     {
         String connectorId = layout.getConnectorId();
