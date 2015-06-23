@@ -152,7 +152,14 @@ class AstBuilder
     @Override
     public Node visitCreateTable(@NotNull SqlBaseParser.CreateTableContext context)
     {
-        return new CreateTable(getQualifiedName(context.qualifiedName()), visit(context.tableElement(), TableElement.class));
+        List<TableElement> tableDefList = visit(context.tableElement(), TableElement.class);
+        if (context.partitionIterm() != null) {
+            List<TableElement> partitionDefList = visit(context.partitionIterm().tableElement(), TableElement.class);
+            for (TableElement e : partitionDefList) {
+                tableDefList.add(new TableElement(e.getName(), e.getType(), e.getComment(), true));
+            }
+        }
+        return new CreateTable(getQualifiedName(context.qualifiedName()), tableDefList, context.EXISTS() != null);
     }
 
     @Override
@@ -900,7 +907,11 @@ class AstBuilder
     @Override
     public Node visitTableElement(@NotNull SqlBaseParser.TableElementContext context)
     {
-        return new TableElement(context.identifier().getText(), getType(context.type()));
+        Optional<String> comment = Optional.empty();
+        if (context.COMMENT() != null) {
+            comment = Optional.of(unquote(context.STRING().getText()));
+        }
+        return new TableElement(context.identifier().getText(), getType(context.type()), comment, false);
     }
 
     @Override

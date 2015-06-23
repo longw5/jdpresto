@@ -26,11 +26,13 @@ public class CreateTable
 {
     private final QualifiedName name;
     private final List<TableElement> elements;
+    private final boolean exists;
 
-    public CreateTable(QualifiedName name, List<TableElement> elements)
+    public CreateTable(QualifiedName name, List<TableElement> elements, boolean exists)
     {
         this.name = checkNotNull(name, "table is null");
         this.elements = ImmutableList.copyOf(checkNotNull(elements, "elements is null"));
+        this.exists = exists;
     }
 
     public QualifiedName getName()
@@ -43,6 +45,11 @@ public class CreateTable
         return elements;
     }
 
+    public boolean isExists()
+    {
+        return exists;
+    }
+
     @Override
     public <R, C> R accept(AstVisitor<R, C> visitor, C context)
     {
@@ -52,7 +59,7 @@ public class CreateTable
     @Override
     public int hashCode()
     {
-        return Objects.hash(name, elements);
+        return Objects.hash(name, elements, exists);
     }
 
     @Override
@@ -65,8 +72,9 @@ public class CreateTable
             return false;
         }
         CreateTable o = (CreateTable) obj;
-        return Objects.equals(name, o.name) &&
-                Objects.equals(elements, o.elements);
+        return Objects.equals(name, o.name)
+                && Objects.equals(elements, o.elements)
+                && exists == o.exists;
     }
 
     @Override
@@ -75,6 +83,7 @@ public class CreateTable
         return toStringHelper(this)
                 .add("name", name)
                 .add("elements", elements)
+                .add("exists", exists)
                 .toString();
     }
 }

@@ -31,8 +31,8 @@ statement
     | USE schema=identifier                                            #use
     | USE catalog=identifier '.' schema=identifier                     #use
     | CREATE TABLE qualifiedName AS query                              #createTableAsSelect
-    | CREATE TABLE qualifiedName
-        '(' tableElement (',' tableElement)* ')'                       #createTable
+    | CREATE TABLE (IF NOT EXISTS)? qualifiedName
+        '(' tableElement (',' tableElement)* ')' (partitionIterm)?     #createTable
     | DROP TABLE (IF EXISTS)? qualifiedName                            #dropTable
     | INSERT INTO qualifiedName query                                  #insertInto
     | DELETE FROM qualifiedName (WHERE booleanExpression)?             #delete
@@ -67,7 +67,11 @@ with
     ;
 
 tableElement
-    : identifier type
+    : identifier type (COMMENT STRING)?
+    ;
+
+partitionIterm
+    : PARTITIONED BY '(' tableElement (',' tableElement)* ')'
     ;
 
 queryNoWith:
@@ -404,6 +408,7 @@ USING: 'USING';
 ON: 'ON';
 OVER: 'OVER';
 PARTITION: 'PARTITION';
+PARTITIONED: 'PARTITIONED';
 RANGE: 'RANGE';
 ROWS: 'ROWS';
 UNBOUNDED: 'UNBOUNDED';
@@ -416,6 +421,7 @@ RECURSIVE: 'RECURSIVE';
 VALUES: 'VALUES';
 CREATE: 'CREATE';
 TABLE: 'TABLE';
+COMMENT: 'COMMENT';
 VIEW: 'VIEW';
 REPLACE: 'REPLACE';
 INSERT: 'INSERT';

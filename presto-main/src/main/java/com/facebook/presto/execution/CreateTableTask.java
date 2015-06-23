@@ -53,7 +53,10 @@ public class CreateTableTask
         QualifiedTableName tableName = createQualifiedTableName(session, statement.getName());
         Optional<TableHandle> tableHandle = metadata.getTableHandle(session, tableName);
         if (tableHandle.isPresent()) {
-            throw new SemanticException(TABLE_ALREADY_EXISTS, statement, "Table '%s' already exists", tableName);
+            if (!statement.isExists()) {
+                throw new SemanticException(TABLE_ALREADY_EXISTS, statement, "Table '%s' already exists", tableName);
+            }
+            return;
         }
 
         List<ColumnMetadata> columns = new ArrayList<>();
@@ -62,7 +65,8 @@ public class CreateTableTask
             if ((type == null) || type.equals(UNKNOWN)) {
                 throw new SemanticException(TYPE_MISMATCH, element, "Unknown type for column '%s' ", element.getName());
             }
-            columns.add(new ColumnMetadata(element.getName(), type, false));
+            String comment = element.getComment().isPresent() ? element.getComment().get() : null;
+            columns.add(new ColumnMetadata(element.getName(), type, element.isPartitionKey(), comment, false));
         }
 
         TableMetadata tableMetadata = new TableMetadata(
