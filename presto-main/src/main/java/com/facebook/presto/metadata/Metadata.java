@@ -17,11 +17,13 @@ import com.facebook.presto.Session;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ColumnMetadata;
 import com.facebook.presto.spi.Constraint;
+import com.facebook.presto.spi.InsertOption;
 import com.facebook.presto.spi.block.BlockEncodingSerde;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.spi.type.TypeManager;
 import com.facebook.presto.spi.type.TypeSignature;
 import com.facebook.presto.sql.tree.QualifiedName;
+
 import io.airlift.slice.Slice;
 
 import javax.validation.constraints.NotNull;
@@ -157,7 +159,7 @@ public interface Metadata
     /**
      * Begin insert query
      */
-    InsertTableHandle beginInsert(Session session, TableHandle tableHandle);
+    InsertTableHandle beginInsert(Session session, TableHandle tableHandle, InsertOption insertOption);
 
     /**
      * Commit insert query

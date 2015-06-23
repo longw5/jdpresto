@@ -655,9 +655,15 @@ public final class SqlFormatter
         @Override
         protected Void visitInsert(Insert node, Integer indent)
         {
-            builder.append("INSERT INTO ")
-                    .append(node.getTarget())
-                    .append(" ");
+            if (node.isOverwrite()) {
+                builder.append("INSERT OVERWRITE ");
+            }
+            else {
+                builder.append("INSERT INTO ");
+            }
+
+            builder.append(node.getTarget())
+                   .append(" ");
 
             process(node.getQuery(), indent);
 

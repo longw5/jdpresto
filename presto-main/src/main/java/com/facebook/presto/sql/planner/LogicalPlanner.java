@@ -124,7 +124,7 @@ public class LogicalPlanner
                 analysis,
                 createRelationPlan(analysis),
                 metadata.getTableMetadata(target),
-                new InsertReference(target));
+                new InsertReference(target, analysis.getInsertOption()));
     }
 
     private RelationPlan createTableWriterPlan(Analysis analysis, RelationPlan plan, TableMetadata tableMetadata, WriterTarget target)

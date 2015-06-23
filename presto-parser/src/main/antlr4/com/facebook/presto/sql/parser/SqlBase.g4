@@ -32,9 +32,10 @@ statement
     | USE catalog=identifier '.' schema=identifier                     #use
     | CREATE TABLE qualifiedName AS query                              #createTableAsSelect
     | CREATE TABLE (IF NOT EXISTS)? qualifiedName
-        '(' tableElement (',' tableElement)* ')' (partitionIterm)?     #createTable
+        '(' tableElement (',' tableElement)*  ')' (partitionIterm)?    #createTable
     | DROP TABLE (IF EXISTS)? qualifiedName                            #dropTable
-    | INSERT INTO qualifiedName query                                  #insertInto
+    | INSERT (INTO | OVERWRITE) (TABLE)? qualifiedName 
+        (PARTITION '(' partitionDef (',' partitionDef)* ')' )? query   #insert
     | DELETE FROM qualifiedName (WHERE booleanExpression)?             #delete
     | ALTER TABLE from=qualifiedName RENAME TO to=qualifiedName        #renameTable
     | ALTER TABLE tableName=qualifiedName
@@ -73,6 +74,11 @@ tableElement
 partitionIterm
     : PARTITIONED BY '(' tableElement (',' tableElement)* ')'
     ;
+
+partitionDef
+    : identifier (EQ valueExpression)?   # partitionElement
+    ;
+
 
 queryNoWith:
       queryTerm
@@ -427,6 +433,7 @@ REPLACE: 'REPLACE';
 INSERT: 'INSERT';
 DELETE: 'DELETE';
 INTO: 'INTO';
+OVERWRITE: 'OVERWRITE';
 CONSTRAINT: 'CONSTRAINT';
 DESCRIBE: 'DESCRIBE';
 EXPLAIN: 'EXPLAIN';

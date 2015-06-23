@@ -63,6 +63,7 @@ import com.facebook.presto.sql.tree.Node;
 import com.facebook.presto.sql.tree.NotExpression;
 import com.facebook.presto.sql.tree.NullIfExpression;
 import com.facebook.presto.sql.tree.NullLiteral;
+import com.facebook.presto.sql.tree.PartitionElement;
 import com.facebook.presto.sql.tree.QualifiedName;
 import com.facebook.presto.sql.tree.QualifiedNameReference;
 import com.facebook.presto.sql.tree.Query;
@@ -175,9 +176,23 @@ class AstBuilder
     }
 
     @Override
-    public Node visitInsertInto(@NotNull SqlBaseParser.InsertIntoContext context)
+    public Node visitInsert(@NotNull SqlBaseParser.InsertContext context)
     {
-        return new Insert(getQualifiedName(context.qualifiedName()), (Query) visit(context.query()));
+        return new Insert(getQualifiedName(context.qualifiedName()),
+                (Query) visit(context.query()),
+                context.OVERWRITE() != null,
+                context.PARTITION() != null,
+                visit(context.partitionDef(), PartitionElement.class));
+    }
+
+    @Override
+    public Node visitPartitionElement(@NotNull SqlBaseParser.PartitionElementContext context)
+    {
+        Optional<Expression> value = Optional.empty();
+        if (context.EQ() != null) {
+            value = Optional.of((Expression) visit(context.valueExpression()));
+        }
+        return new PartitionElement(context.identifier().getText(), value);
     }
 
     @Override

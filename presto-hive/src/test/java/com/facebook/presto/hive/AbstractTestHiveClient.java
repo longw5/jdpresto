@@ -297,16 +297,6 @@ public abstract class AbstractTestHiveClient
         HdfsConfiguration hdfsConfiguration = new HiveHdfsConfiguration(new HdfsConfigurationUpdater(hiveClientConfig));
 
         hdfsEnvironment = new HdfsEnvironment(hdfsConfiguration, hiveClientConfig);
-        metadata = new HiveMetadata(
-                connectorId,
-                metastoreClient,
-                hdfsEnvironment,
-                timeZone,
-                true,
-                true,
-                true,
-                hiveClientConfig.getHiveStorageFormat(),
-                new TypeRegistry());
         splitManager = new HiveSplitManager(
                 connectorId,
                 metastoreClient,
@@ -324,6 +314,17 @@ public abstract class AbstractTestHiveClient
                 false,
                 false,
                 false);
+        metadata = new HiveMetadata(
+                connectorId,
+                metastoreClient,
+                hdfsEnvironment,
+                timeZone,
+                true,
+                true,
+                true,
+                hiveClientConfig.getHiveStorageFormat(),
+                new TypeRegistry(),
+                splitManager);
         recordSinkProvider = new HiveRecordSinkProvider(hdfsEnvironment);
         pageSourceProvider = new HivePageSourceProvider(hiveClientConfig, hdfsEnvironment, DEFAULT_HIVE_RECORD_CURSOR_PROVIDER, DEFAULT_HIVE_DATA_STREAM_FACTORIES, TYPE_MANAGER);
     }

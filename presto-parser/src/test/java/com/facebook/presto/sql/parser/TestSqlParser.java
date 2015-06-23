@@ -696,7 +696,7 @@ public class TestSqlParser
             throws Exception
     {
         assertStatement("INSERT INTO a SELECT * FROM t",
-                new Insert(QualifiedName.of("a"), simpleQuery(selectList(new AllColumns()), table(QualifiedName.of("t")))));
+                new Insert(QualifiedName.of("a"), simpleQuery(selectList(new AllColumns()), table(QualifiedName.of("t"))), false, false, null));
     }
 
     @Test
