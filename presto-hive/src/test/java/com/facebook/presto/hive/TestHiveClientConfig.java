@@ -59,7 +59,7 @@ public class TestHiveClientConfig
                 .setDfsConnectMaxRetries(5)
                 .setVerifyChecksum(true)
                 .setResourceConfigFiles((String) null)
-                .setHiveStorageFormat(HiveStorageFormat.RCBINARY)
+                .setHiveStorageFormat(HiveStorageFormat.ORC)
                 .setDomainSocketPath(null)
                 .setUseParquetColumnNames(false)
                 .setS3AwsAccessKey(null)
