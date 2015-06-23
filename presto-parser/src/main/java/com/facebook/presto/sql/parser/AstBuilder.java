@@ -147,7 +147,10 @@ class AstBuilder
     @Override
     public Node visitCreateTableAsSelect(@NotNull SqlBaseParser.CreateTableAsSelectContext context)
     {
-        return new CreateTableAsSelect(getQualifiedName(context.qualifiedName()), (Query) visit(context.query()));
+        List<String> columns = context.IDENTIFIER().stream()
+                .map(ParseTree::getText)
+                .collect(Collectors.toList());
+        return new CreateTableAsSelect(getQualifiedName(context.qualifiedName()), (Query) visit(context.query()), context.PARTITION() != null, columns);
     }
 
     @Override

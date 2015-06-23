@@ -17,6 +17,7 @@ import com.facebook.presto.metadata.FunctionInfo;
 import com.facebook.presto.metadata.QualifiedTableName;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.CreateTableOption;
 import com.facebook.presto.spi.InsertOption;
 import com.facebook.presto.spi.type.Type;
 import com.facebook.presto.sql.tree.Delete;
@@ -81,6 +82,7 @@ public class Analysis
 
     // for create table
     private Optional<QualifiedTableName> createTableDestination = Optional.empty();
+    private CreateTableOption createTableOption;
 
     // for insert
     private Optional<TableHandle> insertTarget = Optional.empty();
@@ -321,9 +323,19 @@ public class Analysis
         this.createTableDestination = Optional.of(destination);
     }
 
+    public void setCreateTableOption(CreateTableOption createTableOption)
+    {
+        this.createTableOption = createTableOption;
+    }
+
     public Optional<QualifiedTableName> getCreateTableDestination()
     {
         return createTableDestination;
+    }
+
+    public CreateTableOption getCreateTableOption()
+    {
+        return createTableOption;
     }
 
     public void setInsertTarget(TableHandle target)

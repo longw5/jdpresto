@@ -13,60 +13,44 @@
  */
 package com.facebook.presto.sql.tree;
 
-import java.util.List;
 import java.util.Objects;
-
-import com.google.common.collect.ImmutableList;
+import java.util.Optional;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class CreateTableAsSelect
+public final class PartitionElement
         extends Statement
 {
-    private final QualifiedName name;
-    private final Query query;
-    private final boolean partition;
-    private final List<String> partitionList;
+    private final String name;
+    private final Optional<Expression> value;
 
-    public CreateTableAsSelect(QualifiedName name, Query query, boolean partition, List<String> partitionList)
+    public PartitionElement(String name, Optional<Expression> value)
     {
         this.name = checkNotNull(name, "name is null");
-        this.query = checkNotNull(query, "query is null");
-        this.partition = partition;
-        this.partitionList = ImmutableList.copyOf(partitionList);
+        this.value = checkNotNull(value, "value is null");
     }
 
-    public QualifiedName getName()
+    public String getName()
     {
         return name;
     }
 
-    public Query getQuery()
+    public Optional<Expression> getValue()
     {
-        return query;
-    }
-
-    public boolean isPartition()
-    {
-        return partition;
-    }
-
-    public List<String> getPartitionList()
-    {
-        return partitionList;
+        return value;
     }
 
     @Override
     public <R, C> R accept(AstVisitor<R, C> visitor, C context)
     {
-        return visitor.visitCreateTableAsSelect(this, context);
+        return visitor.visitPartitionElement(this, context);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(name, query);
+        return Objects.hash(name, value);
     }
 
     @Override
@@ -78,9 +62,9 @@ public class CreateTableAsSelect
         if ((obj == null) || (getClass() != obj.getClass())) {
             return false;
         }
-        CreateTableAsSelect o = (CreateTableAsSelect) obj;
-        return Objects.equals(name, o.name)
-                && Objects.equals(query, o.query);
+        PartitionElement o = (PartitionElement) obj;
+        return Objects.equals(name, o.name) &&
+                Objects.equals(value, o.value);
     }
 
     @Override
@@ -88,7 +72,7 @@ public class CreateTableAsSelect
     {
         return toStringHelper(this)
                 .add("name", name)
-                .add("query", query)
+                .add("value", value)
                 .toString();
     }
 }

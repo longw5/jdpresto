@@ -430,6 +430,9 @@ public class HiveMetadata
 
         ImmutableList.Builder<String> columnNames = ImmutableList.builder();
         ImmutableList.Builder<Type> columnTypes = ImmutableList.builder();
+        List<Boolean> columnPartitions = tableMetadata.getColumns().stream()
+                .map(ColumnMetadata::isPartitionKey)
+                .collect(toList());
 
         // get the root directory for the database
         SchemaTableName schemaTableName = tableMetadata.getTable();
@@ -447,6 +450,7 @@ public class HiveMetadata
                     tableName,
                     columnNames.build(),
                     columnTypes.build(),
+                    columnPartitions,
                     tableMetadata.getOwner(),
                     targetPath.toString(),
                     targetPath.toString(),
@@ -469,6 +473,7 @@ public class HiveMetadata
                 tableName,
                 columnNames.build(),
                 columnTypes.build(),
+                columnPartitions,
                 tableMetadata.getOwner(),
                 targetPath.toString(),
                 temporaryPath.toString(),
@@ -502,15 +507,27 @@ public class HiveMetadata
 
         boolean sampled = false;
         ImmutableList.Builder<FieldSchema> columns = ImmutableList.builder();
+        ImmutableList.Builder<FieldSchema> partitionedColumns = ImmutableList.builder();
         for (int i = 0; i < handle.getColumnNames().size(); i++) {
             String name = handle.getColumnNames().get(i);
             String type = types.get(i);
             if (name.equals(SAMPLE_WEIGHT_COLUMN_NAME)) {
-                columns.add(new FieldSchema(name, type, "Presto sample weight column"));
-                sampled = true;
+                if (handle.getColumnPartitioned().get(i)) {
+                    partitionedColumns.add(new FieldSchema(name, type, "Presto sample weight column"));
+                }
+                else {
+                    columns.add(new FieldSchema(name, type, "Presto sample weight column"));
+                    sampled = true;
+                }
             }
             else {
-                columns.add(new FieldSchema(name, type, null));
+                // specify the output table partition columns
+                if (handle.getColumnPartitioned().get(i)) {
+                    partitionedColumns.add(new FieldSchema(name, type, null));
+                }
+                else {
+                    columns.add(new FieldSchema(name, type, null));
+                }
             }
         }
 
@@ -539,10 +556,28 @@ public class HiveMetadata
             tableComment = "Sampled table created by Presto. Only query this table from Hive if you understand how Presto implements sampling.";
         }
         table.setParameters(ImmutableMap.of("comment", tableComment));
-        table.setPartitionKeys(ImmutableList.<FieldSchema>of());
+        table.setPartitionKeys(partitionedColumns.build());
         table.setSd(sd);
 
         metastore.createTable(table);
+
+        // if output table is partitioned, create partition in hive metastore
+        if (handle.isOutputTablePartitioned()) {
+            Map<String, List<String>> filesWritten = new HashMap<String, List<String>>();
+            try {
+                filesWritten = getFilesWritten(fragments, handle.getTableName());
+                addDynamicPartitions(filesWritten.keySet(),
+                        null,
+                        handle.getTargetPath(),
+                        handle.getSchemaName(),
+                        handle.getTableName());
+            }
+            catch (Exception e) {
+                String filePrefix = handle.getTemporaryPath().replace("/tmp/presto-" + StandardSystemProperty.USER_NAME.value(), "");
+                rollbackInsertCreateChanges(handle.getTargetPath(), handle.isOutputTablePartitioned(), filePrefix, filesWritten);
+                e.printStackTrace();
+            }
+        }
     }
 
     private Path getTargetPath(String schemaName, String tableName, SchemaTableName schemaTableName)

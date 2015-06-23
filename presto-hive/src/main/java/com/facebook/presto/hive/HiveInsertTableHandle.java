@@ -13,63 +13,75 @@
  */
 package com.facebook.presto.hive;
 
-import com.facebook.presto.spi.ConnectorOutputTableHandle;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import com.facebook.presto.spi.ConnectorInsertTableHandle;
 import com.facebook.presto.spi.ConnectorSession;
 import com.facebook.presto.spi.type.Type;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class HiveOutputTableHandle
-        implements ConnectorOutputTableHandle
+public class HiveInsertTableHandle implements ConnectorInsertTableHandle
 {
     private final String clientId;
     private final String schemaName;
     private final String tableName;
     private final List<String> columnNames;
     private final List<Type> columnTypes;
-    private final List<Boolean> columnPartitioned;
-    private final String tableOwner;
     private final String targetPath;
     private final String temporaryPath;
-    private final ConnectorSession connectorSession;
-    private final HiveStorageFormat hiveStorageFormat;
-
+    private final String outputFormat;
+    private final String serdeLib;
+    private final Map<String, String> serdeParameters;
+    private final List<Boolean> partitionBitmap;
+    private final String filePrefix;
+    private final ConnectorSession session;
+    private final PartitionOption partitionOption;
+    private final boolean overwrite;
     @JsonCreator
-    public HiveOutputTableHandle(
+    public HiveInsertTableHandle(
             @JsonProperty("clientId") String clientId,
             @JsonProperty("schemaName") String schemaName,
             @JsonProperty("tableName") String tableName,
             @JsonProperty("columnNames") List<String> columnNames,
             @JsonProperty("columnTypes") List<Type> columnTypes,
-            @JsonProperty("columnPartitioned") List<Boolean> columnPartitioned,
-            @JsonProperty("tableOwner") String tableOwner,
             @JsonProperty("targetPath") String targetPath,
             @JsonProperty("temporaryPath") String temporaryPath,
-            @JsonProperty("connectorSession") ConnectorSession connectorSession,
-            @JsonProperty("hiveStorageFormat") HiveStorageFormat hiveStorageFormat)
+            @JsonProperty("outputFormat") String outputFormat,
+            @JsonProperty("serdeLib") String serdeLib,
+            @JsonProperty("serdeParameters") Map<String, String> serdeParameters,
+            @JsonProperty("partitionBitmap") List<Boolean> partitionBitmap,
+            @JsonProperty("filePrefix") String filePrefix,
+            @JsonProperty("connectorSession") ConnectorSession session,
+            @JsonProperty("overwrite") boolean overwrite,
+            @JsonProperty("partitionOption") PartitionOption partitionOption)
     {
-        this.clientId = checkNotNull(clientId, "clientId is null");
-        this.schemaName = checkNotNull(schemaName, "schemaName is null");
-        this.tableName = checkNotNull(tableName, "tableName is null");
-        this.tableOwner = checkNotNull(tableOwner, "tableOwner is null");
+        this.schemaName = schemaName;
+        this.tableName = tableName;
         this.targetPath = checkNotNull(targetPath, "targetPath is null");
         this.temporaryPath = checkNotNull(temporaryPath, "temporaryPath is null");
-        this.connectorSession = checkNotNull(connectorSession, "session is null");
-        this.hiveStorageFormat = checkNotNull(hiveStorageFormat, "hiveStorageFormat is null");
+        this.clientId = checkNotNull(clientId, "clientId is null");
 
         checkNotNull(columnNames, "columnNames is null");
         checkNotNull(columnTypes, "columnTypes is null");
         checkArgument(columnNames.size() == columnTypes.size(), "columnNames and columnTypes sizes don't match");
         this.columnNames = ImmutableList.copyOf(columnNames);
         this.columnTypes = ImmutableList.copyOf(columnTypes);
-        this.columnPartitioned = columnPartitioned;
+
+        this.outputFormat = outputFormat;
+        this.serdeLib = serdeLib;
+        this.serdeParameters = serdeParameters;
+        this.partitionBitmap = partitionBitmap;
+        this.filePrefix = filePrefix;
+        this.session = session;
+        this.overwrite = overwrite;
+        this.partitionOption = checkNotNull(partitionOption, "partitionOption is null");
     }
 
     @JsonProperty
@@ -96,75 +108,10 @@ public class HiveOutputTableHandle
         return columnNames;
     }
 
-    public List<String> getDataColumnNames()
-    {
-        if (!isOutputTablePartitioned()) {
-            return columnNames;
-        }
-
-        List<String> dataColumnNames = new ArrayList<String>();
-        for (int i = 0; i < columnNames.size(); i++) {
-            if (!columnPartitioned.get(i)) {
-                dataColumnNames.add(columnNames.get(i));
-            }
-        }
-
-        return dataColumnNames;
-    }
-
     @JsonProperty
     public List<Type> getColumnTypes()
     {
         return columnTypes;
-    }
-
-    public List<Type> getDataColumnTypes()
-    {
-        if (!isOutputTablePartitioned()) {
-            return ImmutableList.copyOf(columnTypes);
-        }
-
-        List<Type> dataColumnTypes = new ArrayList<Type>();
-        for (int i = 0; i < columnTypes.size(); i++) {
-            if (!columnPartitioned.get(i)) {
-                dataColumnTypes.add(columnTypes.get(i));
-            }
-        }
-
-        return dataColumnTypes;
-    }
-
-    @JsonProperty
-    public List<Boolean> getColumnPartitioned()
-    {
-        return columnPartitioned;
-    }
-
-    public boolean isOutputTablePartitioned()
-    {
-        return columnPartitioned != null && columnPartitioned.contains(true);
-    }
-
-    public List<String> getPartitionColumnNames()
-    {
-        if (!isOutputTablePartitioned()) {
-            return null;
-        }
-
-        List<String> partitionColumnNames = new ArrayList<String>();
-        for (int i = 0; i < columnNames.size(); i++) {
-            if (columnPartitioned.get(i)) {
-                partitionColumnNames.add(columnNames.get(i));
-            }
-        }
-
-        return partitionColumnNames;
-    }
-
-    @JsonProperty
-    public String getTableOwner()
-    {
-        return tableOwner;
     }
 
     @JsonProperty
@@ -180,25 +127,114 @@ public class HiveOutputTableHandle
     }
 
     @JsonProperty
-    public ConnectorSession getConnectorSession()
+    public String getOutputFormat()
     {
-        return connectorSession;
+        return outputFormat;
     }
 
     @JsonProperty
-    public HiveStorageFormat getHiveStorageFormat()
+    public List<Boolean> getPartitionBitmap()
     {
-        return hiveStorageFormat;
+        return partitionBitmap;
+    }
+
+    @JsonProperty
+    public String getFilePrefix()
+    {
+        return filePrefix;
+    }
+
+    @JsonProperty
+    public String getSerdeLib()
+    {
+        return serdeLib;
+    }
+
+    @JsonProperty
+    public Map<String, String> getSerdeParameters()
+    {
+        return serdeParameters;
+    }
+
+    @JsonProperty
+    public ConnectorSession getConnectorSession()
+    {
+        return session;
     }
 
     @Override
     public String toString()
     {
-        return "hive:" + schemaName + "." + tableName;
+        return "Writing to: " + targetPath + " with Prefix: " + filePrefix;
     }
 
     public boolean hasTemporaryPath()
     {
         return !temporaryPath.equals(targetPath);
+    }
+
+    public boolean isOutputTablePartitioned()
+    {
+        return partitionBitmap != null;
+    }
+
+    public List<Type> getDataColumnTypes()
+    {
+        if (!isOutputTablePartitioned()) {
+            return ImmutableList.copyOf(columnTypes);
+        }
+
+        List<Type> dataColumnTypes = new ArrayList<Type>();
+        for (int i = 0; i < columnTypes.size(); i++) {
+            if (!partitionBitmap.get(i)) {
+                dataColumnTypes.add(columnTypes.get(i));
+            }
+        }
+
+        return dataColumnTypes;
+    }
+
+    public List<String> getDataColumnNames()
+    {
+        if (!isOutputTablePartitioned()) {
+            return columnNames;
+        }
+
+        List<String> dataColumnNames = new ArrayList<String>();
+        for (int i = 0; i < columnNames.size(); i++) {
+            if (!partitionBitmap.get(i)) {
+                dataColumnNames.add(columnNames.get(i));
+            }
+        }
+
+        return dataColumnNames;
+    }
+
+    public List<String> getPartitionColumnNames()
+    {
+        if (!isOutputTablePartitioned()) {
+            return null;
+        }
+
+        List<String> partitionColumnNames = new ArrayList<String>();
+        for (int i = 0; i < columnNames.size(); i++) {
+            if (partitionBitmap.get(i)) {
+                partitionColumnNames.add(columnNames.get(i));
+            }
+        }
+
+        return partitionColumnNames;
+    }
+
+    @JsonProperty
+    public boolean isOverwrite()
+    {
+        return overwrite;
+    }
+
+    @JsonProperty
+    public PartitionOption getPartitionOption()
+    {
+        return partitionOption;
     }
 }

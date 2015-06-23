@@ -19,6 +19,7 @@ import com.facebook.presto.metadata.MetadataUtil;
 import com.facebook.presto.metadata.QualifiedTableName;
 import com.facebook.presto.metadata.TableHandle;
 import com.facebook.presto.spi.ColumnMetadata;
+import com.facebook.presto.spi.CreateTableOption;
 import com.facebook.presto.spi.InsertOption;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.Type;
@@ -127,6 +128,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Iterables.elementsEqual;
 import static com.google.common.collect.Iterables.transform;
+import static com.google.common.collect.Iterables.contains;
 import static java.util.stream.Collectors.toList;
 
 class StatementAnalyzer
@@ -581,6 +583,17 @@ class StatementAnalyzer
         TupleDescriptor descriptor = process(node.getQuery(), context);
 
         validateColumnNames(node, descriptor);
+
+        // handle partition exceptions
+        if (node.isPartition()) {
+            Iterable<Optional<String>> queryColumns = transform(descriptor.getVisibleFields(), Field::getName);
+            for (String partitionColumn : node.getPartitionList()) {
+            if (!contains(queryColumns, Optional.of(partitionColumn))) {
+                    throw new SemanticException(MISSING_PARTITION, node, "Target table '%s' is partitioned but query does not speciftys the partition", targetTable);
+                }
+            }
+        }
+        analysis.setCreateTableOption(new CreateTableOption(node.isPartition(), node.getPartitionList()));
 
         return new TupleDescriptor(Field.newUnqualified("rows", BIGINT));
     }

@@ -128,15 +128,20 @@ public class HiveRecordSink
         this(target,
              conf,
              handle.getColumnNames(),
-             handle.getColumnNames(),
+             handle.getDataColumnNames(),
              handle.getColumnTypes(),
-             handle.getColumnTypes(),
+             handle.getDataColumnTypes(),
              handle.getHiveStorageFormat().getOutputFormat(),
              handle.getHiveStorageFormat().getSerDe(),
              null,
              "",
-             false,
+             handle.isOutputTablePartitioned(),
              handle.getConnectorSession());
+
+        if (isPartitioned) {
+            partitionColNames = handle.getPartitionColumnNames();
+            partitionValues = new ArrayList<String>(partitionColNames.size());
+        }
     }
 
     public HiveRecordSink(HiveInsertTableHandle handle, Path target, JobConf conf)
