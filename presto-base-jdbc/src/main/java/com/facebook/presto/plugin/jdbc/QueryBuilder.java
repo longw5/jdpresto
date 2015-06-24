@@ -19,12 +19,19 @@ import com.facebook.presto.spi.Range;
 import com.facebook.presto.spi.TupleDomain;
 import com.facebook.presto.spi.type.BigintType;
 import com.facebook.presto.spi.type.BooleanType;
+import com.facebook.presto.spi.type.DateType;
 import com.facebook.presto.spi.type.DoubleType;
+import com.facebook.presto.spi.type.TimestampType;
 import com.facebook.presto.spi.type.Type;
+import com.facebook.presto.spi.type.VarcharType;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 
+import io.airlift.slice.Slice;
+
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -75,17 +82,18 @@ public class QueryBuilder
         ImmutableList.Builder<String> builder = ImmutableList.builder();
         for (JdbcColumnHandle column : columns) {
             Type type = column.getColumnType();
-            if (type.equals(BigintType.BIGINT) || type.equals(DoubleType.DOUBLE) || type.equals(BooleanType.BOOLEAN)) {
+            if (type.equals(BigintType.BIGINT) || type.equals(DoubleType.DOUBLE) || type.equals(BooleanType.BOOLEAN)
+                    || type.equals(VarcharType.VARCHAR) || type.equals(DateType.DATE) || type.equals(TimestampType.TIMESTAMP)) {
                 Domain domain = tupleDomain.getDomains().get(column);
                 if (domain != null) {
-                    builder.add(toPredicate(column.getColumnName(), domain));
+                    builder.add(toPredicate(column.getColumnName(), domain, type));
                 }
             }
         }
         return builder.build();
     }
 
-    private String toPredicate(String columnName, Domain domain)
+    private String toPredicate(String columnName, Domain domain, Type columnType)
     {
         if (domain.getRanges().isNone() && domain.isNullAllowed()) {
             return quote(columnName) + " IS NULL";
@@ -108,10 +116,10 @@ public class QueryBuilder
                 if (!range.getLow().isLowerUnbounded()) {
                     switch (range.getLow().getBound()) {
                         case ABOVE:
-                            rangeConjuncts.add(toPredicate(columnName, ">", range.getLow().getValue()));
+                            rangeConjuncts.add(toPredicate(columnName, ">", range.getLow().getValue(), columnType));
                             break;
                         case EXACTLY:
-                            rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue()));
+                            rangeConjuncts.add(toPredicate(columnName, ">=", range.getLow().getValue(), columnType));
                             break;
                         case BELOW:
                             throw new IllegalArgumentException("Low Marker should never use BELOW bound: " + range);
@@ -124,10 +132,10 @@ public class QueryBuilder
                         case ABOVE:
                             throw new IllegalArgumentException("High Marker should never use ABOVE bound: " + range);
                         case EXACTLY:
-                            rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue()));
+                            rangeConjuncts.add(toPredicate(columnName, "<=", range.getHigh().getValue(), columnType));
                             break;
                         case BELOW:
-                            rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue()));
+                            rangeConjuncts.add(toPredicate(columnName, "<", range.getHigh().getValue(), columnType));
                             break;
                         default:
                             throw new AssertionError("Unhandled bound: " + range.getHigh().getBound());
@@ -141,10 +149,12 @@ public class QueryBuilder
 
         // Add back all of the possible single values either as an equality or an IN predicate
         if (singleValues.size() == 1) {
-            disjuncts.add(toPredicate(columnName, "=", getOnlyElement(singleValues)));
+            disjuncts.add(toPredicate(columnName, "=", getOnlyElement(singleValues), columnType));
         }
         else if (singleValues.size() > 1) {
-            disjuncts.add(quote(columnName) + " IN (" + Joiner.on(",").join(transform(singleValues, QueryBuilder::encode)) + ")");
+            ImmutableList.Builder<String> inListBuilder = ImmutableList.builder();
+            singleValues.stream().forEach(value -> inListBuilder.add(encode(value, columnType)));
+            disjuncts.add(quote(columnName) + " IN (" + Joiner.on(",").join(inListBuilder.build()) + ")");
         }
 
         // Add nullability disjuncts
@@ -156,9 +166,9 @@ public class QueryBuilder
         return "(" + Joiner.on(" OR ").join(disjuncts) + ")";
     }
 
-    private String toPredicate(String columnName, String operator, Object value)
+    private String toPredicate(String columnName, String operator, Object value, Type columnType)
     {
-        return quote(columnName) + " " + operator + " " + encode(value);
+        return quote(columnName) + " " + operator + " " + encode(value, columnType);
     }
 
     private String quote(String name)
@@ -167,10 +177,19 @@ public class QueryBuilder
         return quote + name + quote;
     }
 
-    private static String encode(Object value)
+    private static String encode(Object value, Type columnType)
     {
         if (value instanceof Number || value instanceof Boolean) {
+            if (columnType.equals(DateType.DATE)) {
+                return "'" + new SimpleDateFormat("yyyy-MM-dd").format(new Date(86400000 * Long.parseLong(value.toString(), 10))) + "'";
+            }
+            else if (columnType.equals(TimestampType.TIMESTAMP)) {
+                return "'" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date(Long.parseLong(value.toString(), 10))) + "'";
+            }
             return value.toString();
+        }
+        else if (value instanceof Slice) {
+            return "'" + ((Slice) value).toStringUtf8() + "'";
         }
         throw new UnsupportedOperationException("Can't handle type: " + value.getClass().getName());
     }
