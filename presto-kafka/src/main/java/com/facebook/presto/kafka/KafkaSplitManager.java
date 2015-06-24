@@ -27,7 +27,6 @@ import com.facebook.presto.spi.TableNotFoundException;
 import com.facebook.presto.spi.TupleDomain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import io.airlift.log.Logger;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
@@ -100,10 +99,28 @@ public class KafkaSplitManager
                         log.warn("No leader for partition %s/%s found!", metadata.topic(), part.partitionId());
                     }
                     else {
+                        // make sure the first broker is the partition leader
+                        ImmutableList.Builder<HostAddress> partitionNodesBuilder = ImmutableList.builder();
+                        HostAddress partitionLeader = brokerToHostAddress(leader);
+
+                        boolean isLeaderFirst = true;
+                        if (part.isr().get(0).id() != leader.id()) {
+                            isLeaderFirst = false;
+                        }
+
+                        if (!isLeaderFirst) {
+                            partitionNodesBuilder.add(partitionLeader);
+                        }
+                        for (Broker broker : part.isr()) {
+                            if (isLeaderFirst || broker.id() != leader.id()) {
+                                partitionNodesBuilder.add(brokerToHostAddress(broker));
+                            }
+                        }
+
                         builder.add(new KafkaPartition(metadata.topic(),
                                 part.partitionId(),
-                                HostAddress.fromParts(leader.host(), leader.port()),
-                                ImmutableList.copyOf(Lists.transform(part.isr(), KafkaSplitManager::brokerToHostAddress))));
+                                partitionLeader,
+                                partitionNodesBuilder.build()));
                     }
                 }
             }
@@ -169,7 +186,7 @@ public class KafkaSplitManager
         return offsetResponse.offsets(partition.getTopicName(), partition.getPartitionIdAsInt());
     }
 
-    private static HostAddress brokerToHostAddress(Broker broker)
+    private HostAddress brokerToHostAddress(Broker broker)
     {
         return HostAddress.fromParts(broker.host(), broker.port());
     }
