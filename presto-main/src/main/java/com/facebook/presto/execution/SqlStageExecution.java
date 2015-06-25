@@ -440,7 +440,13 @@ public final class SqlStageExecution
     private void scheduleFixedNodeCount(int nodeCount)
     {
         // create tasks on "nodeCount" random nodes
-        List<Node> nodes = nodeSelector.selectRandomNodes(nodeCount);
+        List<Node> nodes;
+        if (nodeCount == 1) {
+            nodes = nodeSelector.selectReportNode(nodeCount);
+        }
+        else {
+            nodes = nodeSelector.selectRandomNodes(nodeCount, PlanDistribution.FIXED);
+        }
         checkCondition(!nodes.isEmpty(), NO_NODES_AVAILABLE, "No worker nodes available");
         ImmutableList.Builder<TaskId> tasks = ImmutableList.builder();
         for (int taskId = 0; taskId < nodes.size(); taskId++) {
@@ -487,7 +493,8 @@ public final class SqlStageExecution
                 stateMachine.recordGetSplitTime(start);
 
                 while (!pendingSplits.isEmpty() && !getState().isDone()) {
-                    Multimap<Node, Split> splitAssignment = nodeSelector.computeAssignments(pendingSplits, tasks.values(), controlScanConcurrencyEnabled, scanConcurrencyCount);
+                    Multimap<Node, Split> splitAssignment = nodeSelector.computeAssignments(pendingSplits, tasks.values(),
+                            PlanDistribution.SOURCE, controlScanConcurrencyEnabled, scanConcurrencyCount);
                     pendingSplits = ImmutableSet.copyOf(Sets.difference(pendingSplits, ImmutableSet.copyOf(splitAssignment.values())));
 
                     assignSplits(nextTaskId, splitAssignment);

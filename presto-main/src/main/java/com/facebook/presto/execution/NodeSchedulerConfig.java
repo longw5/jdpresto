@@ -27,6 +27,11 @@ public class NodeSchedulerConfig
     private int maxSplitsPerNode = 100;
     private int maxPendingSplitsPerNodePerTask = 10;
 
+    public static final String REPORT_NODE_DEFAULT = "NA";
+    private String reportNodes = REPORT_NODE_DEFAULT;
+    private boolean schedulerFixToReport = true;
+    private boolean schedulerSourceToReport = true;
+
     public boolean isMultipleTasksPerNodeEnabled()
     {
         return multipleTasksPerNode;
@@ -98,6 +103,42 @@ public class NodeSchedulerConfig
     public NodeSchedulerConfig setMaxSplitsPerNode(int maxSplitsPerNode)
     {
         this.maxSplitsPerNode = maxSplitsPerNode;
+        return this;
+    }
+
+    public String getReportNodes()
+    {
+        return reportNodes;
+    }
+
+    @Config("node-scheduler.report-nodes")
+    public NodeSchedulerConfig setReportNodes(String reportNodes)
+    {
+        this.reportNodes = reportNodes;
+        return this;
+    }
+
+    public boolean getSchedulerFixToReport()
+    {
+        return schedulerFixToReport;
+    }
+
+    @Config("node-scheduler.scheduler-fix-to-report")
+    public NodeSchedulerConfig setSchedulerFixToReport(boolean schedulerFixToReport)
+    {
+        this.schedulerFixToReport = schedulerFixToReport;
+        return this;
+    }
+
+    public boolean getSchedulerSourceToReport()
+    {
+        return schedulerSourceToReport;
+    }
+
+    @Config("node-scheduler.scheduler-source-to-report")
+    public NodeSchedulerConfig setSchedulerSourceToReport(boolean schedulerSourceToReport)
+    {
+        this.schedulerSourceToReport = schedulerSourceToReport;
         return this;
     }
 }

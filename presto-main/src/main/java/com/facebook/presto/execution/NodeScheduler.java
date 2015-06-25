@@ -17,6 +17,8 @@ import com.facebook.presto.metadata.Split;
 import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.Node;
 import com.facebook.presto.spi.NodeManager;
+import com.facebook.presto.sql.planner.PlanFragment;
+import com.google.common.base.Splitter;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.HashMultimap;
@@ -62,6 +64,11 @@ public class NodeScheduler
     private final NodeTaskMap nodeTaskMap;
     private final boolean doubleScheduling;
 
+    private final String reportNodes;
+    private final List<String> reportNodeList;
+    private final boolean schedulerFixToReport;
+    private final boolean schedulerSourceToReport;
+
     @Inject
     public NodeScheduler(NodeManager nodeManager, NodeSchedulerConfig config, NodeTaskMap nodeTaskMap)
     {
@@ -75,6 +82,11 @@ public class NodeScheduler
         this.maxSplitsPerNodePerTaskWhenFull = config.getMaxPendingSplitsPerNodePerTask();
         this.nodeTaskMap = checkNotNull(nodeTaskMap, "nodeTaskMap is null");
         checkArgument(maxSplitsPerNode > maxSplitsPerNodePerTaskWhenFull, "maxSplitsPerNode must be > maxSplitsPerNodePerTaskWhenFull");
+
+        this.reportNodes = config.getReportNodes();
+        this.schedulerFixToReport = config.getSchedulerFixToReport();
+        this.schedulerSourceToReport = config.getSchedulerSourceToReport();
+        this.reportNodeList = Splitter.on(",").splitToList(reportNodes);
     }
 
     @Managed
@@ -165,18 +177,22 @@ public class NodeScheduler
             return nodeManager.getCurrentNode();
         }
 
-        public List<Node> selectRandomNodes(int limit)
+        public List<Node> selectRandomNodes(int limit, final PlanFragment.PlanDistribution pd)
         {
-            return selectNodes(limit, randomizedNodes());
+            return selectNodes(limit, randomizedNodes(), pd);
         }
 
-        private List<Node> selectNodes(int limit, Iterator<Node> candidates)
+        private List<Node> selectNodes(int limit, Iterator<Node> candidates, final PlanFragment.PlanDistribution pd)
         {
             checkArgument(limit > 0, "limit must be at least 1");
 
             List<Node> selected = new ArrayList<>(limit);
             while (selected.size() < limit && candidates.hasNext()) {
-                selected.add(candidates.next());
+                Node node = candidates.next();
+                if (scheduleReportNodeIfNecessary(node, pd)) {
+                    continue;
+                }
+                selected.add(node);
             }
 
             if (doubleScheduling && !selected.isEmpty()) {
@@ -194,6 +210,40 @@ public class NodeScheduler
             return selected;
         }
 
+        public List<Node> selectReportNode(int limit)
+        {
+            if (NodeSchedulerConfig.REPORT_NODE_DEFAULT.equals(reportNodes)) {
+                return selectRandomNodes(limit, PlanFragment.PlanDistribution.SINGLE);
+            }
+            else {
+                checkArgument(limit > 0, "limit must be at least 1");
+                ImmutableList<Node> nodes = nodeMap.get().get().getNodesByHostAndPort().values().stream()
+                        .filter(node -> reportNodeList.contains(node.getHostAndPort().getHostText()))
+                        .collect(toImmutableList());
+                return selectNodes(limit, new ResettableRandomizedIterator<>(nodes), PlanFragment.PlanDistribution.SINGLE);
+            }
+        }
+
+        /**
+         * check whether should schedule the task to report node
+         */
+        public boolean scheduleReportNodeIfNecessary(Node node, final PlanFragment.PlanDistribution pd)
+        {
+            boolean skipFlag = false;
+            if (NodeSchedulerConfig.REPORT_NODE_DEFAULT.equals(reportNodes)) {
+                return skipFlag;
+            }
+            else {
+                if (reportNodeList != null && reportNodeList.contains(node.getHostAndPort().getHostText())) {
+                    if ((!schedulerFixToReport && PlanFragment.PlanDistribution.FIXED == pd)
+                            || (!schedulerSourceToReport && PlanFragment.PlanDistribution.SOURCE == pd)) {
+                        skipFlag = true;
+                    }
+                }
+                return skipFlag;
+            }
+        }
+
         /**
          * Identifies the nodes for running the specified splits.
          *
@@ -202,7 +252,7 @@ public class NodeScheduler
          * If we cannot find an assignment for a split, it is not included in the map.
          */
         public Multimap<Node, Split> computeAssignments(Set<Split> splits, Iterable<RemoteTask> existingTasks,
-                                                        boolean controlScanConcurrencyEnabled, int scanConcurrencyCount)
+                final PlanFragment.PlanDistribution pd, boolean controlScanConcurrencyEnabled, int scanConcurrencyCount)
         {
             Multimap<Node, Split> assignment = HashMultimap.create();
             Map<Node, Integer> assignmentCount = new HashMap<>();
@@ -230,11 +280,11 @@ public class NodeScheduler
             for (Split split : splits) {
                 List<Node> candidateNodes;
                 if (locationAwareScheduling || !split.isRemotelyAccessible()) {
-                    candidateNodes = selectCandidateNodes(nodeMap.get().get(), split);
+                    candidateNodes = selectCandidateNodes(nodeMap.get().get(), split, pd);
                 }
                 else {
                     randomCandidates.reset();
-                    candidateNodes = selectNodes(minCandidates, randomCandidates);
+                    candidateNodes = selectNodes(minCandidates, randomCandidates, pd);
                 }
                 checkCondition(!candidateNodes.isEmpty(), NO_NODES_AVAILABLE, "No nodes available to run query");
 
@@ -288,7 +338,7 @@ public class NodeScheduler
             return new ResettableRandomizedIterator<>(nodes);
         }
 
-        private List<Node> selectCandidateNodes(NodeMap nodeMap, Split split)
+        private List<Node> selectCandidateNodes(NodeMap nodeMap, Split split, final PlanFragment.PlanDistribution pd)
         {
             Set<Node> chosen = new LinkedHashSet<>(minCandidates);
             String coordinatorIdentifier = nodeManager.getCurrentNode().getNodeIdentifier();
@@ -297,6 +347,7 @@ public class NodeScheduler
             for (HostAddress hint : split.getAddresses()) {
                 nodeMap.getNodesByHostAndPort().get(hint).stream()
                         .filter(node -> includeCoordinator || !coordinatorIdentifier.equals(node.getNodeIdentifier()))
+                        .filter(node -> !scheduleReportNodeIfNecessary(node, pd))
                         .filter(chosen::add)
                         .forEach(node -> scheduleLocal.incrementAndGet());
 
@@ -314,6 +365,7 @@ public class NodeScheduler
                 if (!hint.hasPort() || split.isRemotelyAccessible()) {
                     nodeMap.getNodesByHost().get(address).stream()
                             .filter(node -> includeCoordinator || !coordinatorIdentifier.equals(node.getNodeIdentifier()))
+                            .filter(node -> !scheduleReportNodeIfNecessary(node, pd))
                             .filter(chosen::add)
                             .forEach(node -> scheduleLocal.incrementAndGet());
                 }
@@ -332,6 +384,9 @@ public class NodeScheduler
                     }
                     for (Node node : nodeMap.getNodesByRack().get(Rack.of(address))) {
                         if (includeCoordinator || !coordinatorIdentifier.equals(node.getNodeIdentifier())) {
+                            if (scheduleReportNodeIfNecessary(node, pd)) {
+                                continue;
+                            }
                             if (chosen.add(node)) {
                                 scheduleRack.incrementAndGet();
                             }
@@ -352,6 +407,9 @@ public class NodeScheduler
                     ResettableRandomizedIterator<Node> randomizedIterator = randomizedNodes();
                     while (randomizedIterator.hasNext()) {
                         Node node = randomizedIterator.next();
+                        if (scheduleReportNodeIfNecessary(node, pd)) {
+                            continue;
+                        }
                         if (chosen.add(node)) {
                             scheduleRandom.incrementAndGet();
                         }
