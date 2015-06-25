@@ -480,11 +480,14 @@ public final class SqlStageExecution
                 }
 
                 long start = System.nanoTime();
-                Set<Split> pendingSplits = ImmutableSet.copyOf(getFutureValue(splitSource.getNextBatch(splitBatchSize)));
+                boolean controlScanConcurrencyEnabled = splitSource.isControlScanConcurrencyEnabled();
+                int scanConcurrencyCount = splitSource.getScanConcurrencyCount();
+                Set<Split> pendingSplits = ImmutableSet.copyOf(getFutureValue(
+                        splitSource.getNextBatch(controlScanConcurrencyEnabled ? scanConcurrencyCount : splitBatchSize)));
                 stateMachine.recordGetSplitTime(start);
 
                 while (!pendingSplits.isEmpty() && !getState().isDone()) {
-                    Multimap<Node, Split> splitAssignment = nodeSelector.computeAssignments(pendingSplits, tasks.values());
+                    Multimap<Node, Split> splitAssignment = nodeSelector.computeAssignments(pendingSplits, tasks.values(), controlScanConcurrencyEnabled, scanConcurrencyCount);
                     pendingSplits = ImmutableSet.copyOf(Sets.difference(pendingSplits, ImmutableSet.copyOf(splitAssignment.values())));
 
                     assignSplits(nextTaskId, splitAssignment);

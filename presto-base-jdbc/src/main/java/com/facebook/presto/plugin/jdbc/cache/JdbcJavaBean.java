@@ -11,33 +11,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.facebook.presto.split;
+package com.facebook.presto.plugin.jdbc.cache;
 
-import com.facebook.presto.metadata.Split;
-
-import java.io.Closeable;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
-public interface SplitSource
-        extends Closeable
+public class JdbcJavaBean
 {
-    String getDataSourceName();
-
-    CompletableFuture<List<Split>> getNextBatch(int maxSize);
-
-    @Override
-    void close();
-
-    boolean isFinished();
-
-    default boolean isControlScanConcurrencyEnabled()
+    private List<String> columns;
+    private Object[] values;
+    public JdbcJavaBean(List<String> columns)
     {
-        return false;
+        this.columns = columns;
+        this.values = new Object[columns.size()];
     }
 
-    default int getScanConcurrencyCount()
+    public Object getFieldObjectValue(int index)
     {
-        return 1;
+        return values[index];
+    }
+
+    public void setFieldObjectValue(int index, Object value)
+    {
+        values[index] = value;
+    }
+
+    public List<String> getColumns()
+    {
+        return columns;
     }
 }

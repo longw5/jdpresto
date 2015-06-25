@@ -11,7 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.facebook.presto.plugin.mysql;
+package com.facebook.presto.plugin.sqlserver;
 
 import com.facebook.presto.plugin.jdbc.BaseJdbcConfig;
 import com.facebook.presto.plugin.jdbc.JdbcClient;
@@ -23,15 +23,14 @@ import com.google.inject.Scopes;
 
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
-public class MySqlClientModule
+public class SqlServerModule
         implements Module
 {
     @Override
     public void configure(Binder binder)
     {
-        binder.bind(JdbcClient.class).to(MySqlClient.class).in(Scopes.SINGLETON);
+        binder.bind(JdbcClient.class).to(SqlServerClient.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(BaseJdbcConfig.class);
-        configBinder(binder).bindConfig(MySqlConfig.class);
         configBinder(binder).bindConfig(JdbcSubTableConfig.class);
         configBinder(binder).bindConfig(JdbcCacheConfig.class);
     }

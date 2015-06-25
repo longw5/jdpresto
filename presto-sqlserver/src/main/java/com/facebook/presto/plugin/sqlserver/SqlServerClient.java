@@ -11,28 +11,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.facebook.presto.plugin.mysql;
+package com.facebook.presto.plugin.sqlserver;
 
+import java.sql.SQLException;
+
+import javax.inject.Inject;
+
+import net.sourceforge.jtds.jdbc.Driver;
+
+import com.facebook.presto.plugin.jdbc.BaseJdbcClient;
 import com.facebook.presto.plugin.jdbc.BaseJdbcConfig;
-import com.facebook.presto.plugin.jdbc.JdbcClient;
+import com.facebook.presto.plugin.jdbc.JdbcConnectorId;
 import com.facebook.presto.plugin.jdbc.cache.JdbcCacheConfig;
 import com.facebook.presto.plugin.jdbc.subtable.JdbcSubTableConfig;
-import com.google.inject.Binder;
-import com.google.inject.Module;
-import com.google.inject.Scopes;
 
-import static io.airlift.configuration.ConfigBinder.configBinder;
-
-public class MySqlClientModule
-        implements Module
+public class SqlServerClient
+        extends BaseJdbcClient
 {
-    @Override
-    public void configure(Binder binder)
+    @Inject
+    public SqlServerClient(JdbcConnectorId connectorId, BaseJdbcConfig config,
+            JdbcSubTableConfig subTableConfig, JdbcCacheConfig cacheConfig)
+            throws SQLException
     {
-        binder.bind(JdbcClient.class).to(MySqlClient.class).in(Scopes.SINGLETON);
-        configBinder(binder).bindConfig(BaseJdbcConfig.class);
-        configBinder(binder).bindConfig(MySqlConfig.class);
-        configBinder(binder).bindConfig(JdbcSubTableConfig.class);
-        configBinder(binder).bindConfig(JdbcCacheConfig.class);
+        super(connectorId, config, "\"", new Driver(), subTableConfig, cacheConfig);
+        connectionProperties.setProperty("nullCatalogMeansCurrent", "false");
+        dbType = BaseJdbcClient.TYPE_SQLSERVER;
     }
 }

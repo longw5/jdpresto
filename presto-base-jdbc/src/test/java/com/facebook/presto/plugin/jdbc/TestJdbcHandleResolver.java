@@ -14,10 +14,14 @@
 package com.facebook.presto.plugin.jdbc;
 
 import com.facebook.presto.spi.ColumnHandle;
+import com.facebook.presto.spi.HostAddress;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.TupleDomain;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.testng.annotations.Test;
+
+import java.util.List;
 
 import static com.facebook.presto.plugin.jdbc.TestingDatabase.CONNECTOR_ID;
 import static org.testng.Assert.assertFalse;
@@ -49,6 +53,8 @@ public class TestJdbcHandleResolver
 
     private static JdbcSplit createSplit(String connectorId)
     {
-        return new JdbcSplit(connectorId, "catalog", "schema", "table", "connectionUrl", ImmutableMap.<String, String>of(), TupleDomain.<ColumnHandle>all());
+        List<HostAddress> address = ImmutableList.of();
+        return new JdbcSplit(connectorId, "catalog", "schema", "table", "connectionUrl", ImmutableMap.<String, String>of(), TupleDomain.<ColumnHandle>all(),
+                "", address, true, "", "", "", "", System.nanoTime(), 1, false, "");
     }
 }

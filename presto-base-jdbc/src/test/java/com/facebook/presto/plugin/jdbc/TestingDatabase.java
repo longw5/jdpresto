@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.plugin.jdbc;
 
+import com.facebook.presto.plugin.jdbc.cache.JdbcCacheConfig;
+import com.facebook.presto.plugin.jdbc.subtable.JdbcSubTableConfig;
 import com.facebook.presto.spi.ColumnHandle;
 import com.facebook.presto.spi.ConnectorPartitionResult;
 import com.facebook.presto.spi.ConnectorSplitSource;
@@ -47,7 +49,9 @@ final class TestingDatabase
                 new JdbcConnectorId(CONNECTOR_ID),
                 new BaseJdbcConfig().setConnectionUrl(connectionUrl),
                 "\"",
-                new Driver());
+                new Driver(),
+                new JdbcSubTableConfig(),
+                new JdbcCacheConfig());
 
         connection = DriverManager.getConnection(connectionUrl);
         connection.createStatement().execute("CREATE SCHEMA example");

@@ -11,33 +11,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.facebook.presto.split;
+package com.facebook.presto.plugin.sqlserver;
 
-import com.facebook.presto.metadata.Split;
+import com.facebook.presto.plugin.jdbc.JdbcPlugin;
 
-import java.io.Closeable;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-
-public interface SplitSource
-        extends Closeable
+public class SqlServerPlugin
+        extends JdbcPlugin
 {
-    String getDataSourceName();
-
-    CompletableFuture<List<Split>> getNextBatch(int maxSize);
-
-    @Override
-    void close();
-
-    boolean isFinished();
-
-    default boolean isControlScanConcurrencyEnabled()
+    public SqlServerPlugin()
     {
-        return false;
-    }
-
-    default int getScanConcurrencyCount()
-    {
-        return 1;
+        super("sqlserver", new SqlServerModule());
     }
 }

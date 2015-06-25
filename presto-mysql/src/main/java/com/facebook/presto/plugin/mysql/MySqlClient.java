@@ -16,6 +16,8 @@ package com.facebook.presto.plugin.mysql;
 import com.facebook.presto.plugin.jdbc.BaseJdbcClient;
 import com.facebook.presto.plugin.jdbc.BaseJdbcConfig;
 import com.facebook.presto.plugin.jdbc.JdbcConnectorId;
+import com.facebook.presto.plugin.jdbc.cache.JdbcCacheConfig;
+import com.facebook.presto.plugin.jdbc.subtable.JdbcSubTableConfig;
 import com.facebook.presto.spi.SchemaTableName;
 import com.facebook.presto.spi.type.Type;
 import com.google.common.base.Throwables;
@@ -23,7 +25,6 @@ import com.google.common.collect.ImmutableSet;
 import com.mysql.jdbc.Driver;
 
 import javax.inject.Inject;
-
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -35,10 +36,11 @@ public class MySqlClient
         extends BaseJdbcClient
 {
     @Inject
-    public MySqlClient(JdbcConnectorId connectorId, BaseJdbcConfig config, MySqlConfig mySqlConfig)
+    public MySqlClient(JdbcConnectorId connectorId, BaseJdbcConfig config, MySqlConfig mySqlConfig,
+                       JdbcSubTableConfig subTableConfig, JdbcCacheConfig cacheConfig)
             throws SQLException
     {
-        super(connectorId, config, "`", new Driver());
+        super(connectorId, config, "`", new Driver(), subTableConfig, cacheConfig);
         connectionProperties.setProperty("nullCatalogMeansCurrent", "false");
         if (mySqlConfig.isAutoReconnect()) {
             connectionProperties.setProperty("autoReconnect", String.valueOf(mySqlConfig.isAutoReconnect()));
@@ -47,6 +49,7 @@ public class MySqlClient
         if (mySqlConfig.getConnectionTimeout() != null) {
             connectionProperties.setProperty("connectTimeout", String.valueOf(mySqlConfig.getConnectionTimeout().toMillis()));
         }
+        dbType = BaseJdbcClient.TYPE_MYSQL;
     }
 
     @Override

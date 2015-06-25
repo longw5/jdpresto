@@ -49,7 +49,7 @@ public class QueryBuilder
         this.quote = checkNotNull(quote, "quote is null");
     }
 
-    public String buildSql(String catalog, String schema, String table, List<JdbcColumnHandle> columns, TupleDomain<ColumnHandle> tupleDomain)
+    public String buildSql(int dbtype, String catalog, String schema, String table, List<JdbcColumnHandle> columns, TupleDomain<ColumnHandle> tupleDomain)
     {
         StringBuilder sql = new StringBuilder();
 
@@ -67,6 +67,9 @@ public class QueryBuilder
             sql.append(quote(schema)).append('.');
         }
         sql.append(quote(table));
+        if (dbtype == BaseJdbcClient.TYPE_SQLSERVER) {
+            sql.append(" WITH(NOLOCK) ");
+        }
 
         List<String> clauses = toConjuncts(columns, tupleDomain);
         if (!clauses.isEmpty()) {

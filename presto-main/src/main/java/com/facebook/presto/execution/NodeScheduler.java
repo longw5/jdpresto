@@ -28,7 +28,6 @@ import com.google.common.net.InetAddresses;
 import org.weakref.jmx.Managed;
 
 import javax.inject.Inject;
-
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -202,7 +201,8 @@ public class NodeScheduler
          * @return a multimap from node to splits only for splits for which we could identify a node to schedule on.
          * If we cannot find an assignment for a split, it is not included in the map.
          */
-        public Multimap<Node, Split> computeAssignments(Set<Split> splits, Iterable<RemoteTask> existingTasks)
+        public Multimap<Node, Split> computeAssignments(Set<Split> splits, Iterable<RemoteTask> existingTasks,
+                                                        boolean controlScanConcurrencyEnabled, int scanConcurrencyCount)
         {
             Multimap<Node, Split> assignment = HashMultimap.create();
             Map<Node, Integer> assignmentCount = new HashMap<>();
@@ -215,10 +215,11 @@ public class NodeScheduler
             Map<Node, Integer> splitCountByNode = new HashMap<>();
 
             Map<String, Integer> queuedSplitCountByNode = new HashMap<>();
-
+            int allSplits = 0;
             for (RemoteTask task : existingTasks) {
                 String nodeId = task.getNodeId();
                 queuedSplitCountByNode.put(nodeId, queuedSplitCountByNode.getOrDefault(nodeId, 0) + task.getQueuedPartitionedSplitCount());
+                allSplits += task.getPartitionedSplitCount();
             }
 
             ResettableRandomizedIterator<Node> randomCandidates = null;
@@ -268,6 +269,10 @@ public class NodeScheduler
                     }
                 }
                 if (chosenNode != null) {
+                    allSplits += 1;
+                    if (controlScanConcurrencyEnabled && scanConcurrencyCount < allSplits) {
+                        break;
+                    }
                     assignment.put(chosenNode, split);
                     assignmentCount.put(chosenNode, assignmentCount.getOrDefault(chosenNode, 0) + 1);
                 }

@@ -56,6 +56,7 @@ public class PrestoServer
         implements Runnable
 {
     private static Announcer announcer;
+    private static ServerConfig serverConfig;
 
     public enum DatasourceAction {
         ADD, DELETE;
@@ -108,6 +109,7 @@ public class PrestoServer
 
         try {
             Injector injector = app.strictConfig().initialize();
+            serverConfig = injector.getInstance(ServerConfig.class);
 
             injector.getInstance(PluginManager.class).loadPlugins();
 
@@ -205,5 +207,10 @@ public class PrestoServer
             }
         }
         throw new IllegalArgumentException("Presto announcement not found: " + announcements);
+    }
+
+    public static boolean isCoordinator()
+    {
+        return serverConfig == null || serverConfig.isCoordinator();
     }
 }

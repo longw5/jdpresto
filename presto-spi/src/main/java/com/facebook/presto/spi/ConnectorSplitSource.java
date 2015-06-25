@@ -28,4 +28,14 @@ public interface ConnectorSplitSource
     void close();
 
     boolean isFinished();
+
+    default boolean isControlScanConcurrencyEnabled()
+    {
+        return false;
+    }
+
+    default int getScanConcurrencyCount()
+    {
+        return 1;
+    }
 }

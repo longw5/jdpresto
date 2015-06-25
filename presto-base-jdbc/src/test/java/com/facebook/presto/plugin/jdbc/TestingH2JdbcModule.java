@@ -13,6 +13,8 @@
  */
 package com.facebook.presto.plugin.jdbc;
 
+import com.facebook.presto.plugin.jdbc.cache.JdbcCacheConfig;
+import com.facebook.presto.plugin.jdbc.subtable.JdbcSubTableConfig;
 import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -36,7 +38,9 @@ class TestingH2JdbcModule
     @Provides
     public JdbcClient provideJdbcClient(JdbcConnectorId id, BaseJdbcConfig config)
     {
-        return new BaseJdbcClient(id, config, "\"", new Driver());
+        return new BaseJdbcClient(id, config, "\"", new Driver(),
+                new JdbcSubTableConfig(),
+                new JdbcCacheConfig());
     }
 
     public static Map<String, String> createProperties()

@@ -64,4 +64,16 @@ public class ConnectorAwareSplitSource
     {
         return connectorId + ":" + source;
     }
+
+    @Override
+    public boolean isControlScanConcurrencyEnabled()
+    {
+        return source.isControlScanConcurrencyEnabled();
+    }
+
+    @Override
+    public int getScanConcurrencyCount()
+    {
+        return source.getScanConcurrencyCount();
+    }
 }

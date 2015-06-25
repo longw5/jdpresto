@@ -100,7 +100,7 @@ public class TestNodeScheduler
         Split split = new Split("foo", new TestSplitLocal());
         Set<Split> splits = ImmutableSet.of(split);
 
-        Map.Entry<Node, Split> assignment = Iterables.getOnlyElement(selector.computeAssignments(splits, taskMap.values()).entries());
+        Map.Entry<Node, Split> assignment = Iterables.getOnlyElement(selector.computeAssignments(splits, taskMap.values(), false, 1).entries());
         assertEquals(assignment.getKey().getHostAndPort(), split.getAddresses().get(0));
         assertEquals(assignment.getValue(), split);
     }
@@ -112,7 +112,7 @@ public class TestNodeScheduler
         Split split = new Split("foo", new TestSplitLocal());
         Set<Split> splits = ImmutableSet.of(split);
 
-        Map.Entry<Node, Split> assignment = Iterables.getOnlyElement(nodeSelector.computeAssignments(splits, taskMap.values()).entries());
+        Map.Entry<Node, Split> assignment = Iterables.getOnlyElement(nodeSelector.computeAssignments(splits, taskMap.values(), false, 1).entries());
         assertEquals(assignment.getKey().getHostAndPort(), split.getAddresses().get(0));
         assertEquals(assignment.getValue(), split);
     }
@@ -151,7 +151,7 @@ public class TestNodeScheduler
     {
         Set<Split> splits = new HashSet<>();
         splits.add(new Split("foo", new TestSplitRemote()));
-        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values());
+        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values(), false, 1);
         assertEquals(assignments.size(), 1);
     }
 
@@ -164,7 +164,7 @@ public class TestNodeScheduler
         for (int i = 0; i < 3; i++) {
             splits.add(new Split("foo", new TestSplitRemote()));
         }
-        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values());
+        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values(), false, 1);
         assertEquals(assignments.entries().size(), 3);
         for (Node node : nodeManager.getActiveDatasourceNodes("foo")) {
             assertTrue(assignments.keySet().contains(node));
@@ -194,7 +194,7 @@ public class TestNodeScheduler
         for (int i = 0; i < 5; i++) {
             splits.add(new Split("foo", new TestSplitRemote()));
         }
-        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values());
+        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values(), false, 1);
 
         // no split should be assigned to the newNode, as it already has maxNodeSplits assigned to it
         assertFalse(assignments.keySet().contains(newNode));
@@ -228,7 +228,7 @@ public class TestNodeScheduler
         for (int i = 0; i < 5; i++) {
             splits.add(new Split("foo", new TestSplitRemote()));
         }
-        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values());
+        Multimap<Node, Split> assignments = nodeSelector.computeAssignments(splits, taskMap.values(), false, 1);
 
         // no split should be assigned to the newNode, as it already has
         // maxSplitsPerNode + maxSplitsPerNodePerTask assigned to it
